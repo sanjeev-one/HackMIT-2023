@@ -7,6 +7,12 @@
     <title>Chatbot Trainer with Modal</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        #chat-box {
+            overflow-y: auto;
+            max-height: 500px; /* Adjust this value according to your needs */
+        }
+    </style>
 </head>
 
 <body class="bg-gray-100 h-screen flex flex-col justify-center items-center">
@@ -50,16 +56,17 @@
                 playlists: [],
                 async sendMessage() {
                     try {
-                        const response = await fetch(`/ask/${this.userMessage}/${JSON.stringify(this.conversation)}`, {
+                        this.messages.push({role: "user", content: this.userMessage});
+
+                        const response = await fetch(`/ask/${this.userMessage}/${encodeURIComponent(JSON.stringify(this.conversation))}`, {
                             method: 'GET',
                         });
-                        this.conversation.push({role: "user", content: this.userMessage});
 
                         const data = await response.json();
+                        this.conversation.push({role: "user", content: this.userMessage});
                         this.conversation.push({role: "assistant", content: data.reply});
                         // push an object instead with role + type
                         // text, yt 
-                        this.messages.push({role: "user", content: this.userMessage});
 
                         
                         if (data.yt_query !== "") {

@@ -1,13 +1,13 @@
 import modal
 from modal import Image, Mount, Stub, asgi_app, gpu, method
-from pathlib import Path
-
-import os
-import re
 
 
 image = modal.Image.debian_slim().pip_install(
-    "youtube_transcript_api", "weaviate-client", "google-api-python-client", "openai"
+    "youtube_transcript_api",
+    "weaviate-client",
+    "google-api-python-client",
+    "openai",
+    "urllib3",
 )
 
 stub = modal.Stub("yt-search")
@@ -32,6 +32,10 @@ stub = modal.Stub("yt-search")
 )
 @asgi_app()
 def app():
+    import re
+    import os
+    from pathlib import Path
+
     frontend_path = Path(__file__).parent / "frontend"
 
     import fastapi.staticfiles
@@ -41,34 +45,33 @@ def app():
     from OpenAILink import OpenAI_Connector
     from YouTubeLink import YoutubeConnector
 
+    import json
+    from urllib.parse import unquote
+
     db = VectorDB("http://44.209.9.231:8080")
-    openai = OpenAI_Connector(os.environ["OPENAI_API_KEY"])
+    openAI = OpenAI_Connector(os.environ["OPENAI_API_KEY"])
     yt = YoutubeConnector(os.environ["YOUTUBE_API_KEY"])
 
     vector_db = VectorDB(weaviate_url="http://44.209.9.231:8080", weaviate_key="key")
 
-    # Print existing classes
-    vector_db.print_existing_classes()
-
     web_app = FastAPI()
 
-    @web_app.get("/ask/{query}/{conversation}}")
+    @web_app.get("/ask/{query}/{conversation}")
     async def ask(query: str, conversation: str):
+        conversation = unquote(conversation)
         # Initialize the variables
+        print("Ask Endpoint")
+        print(f"Query: {query}")
         yt_query = ""
         tone = ""
-        try:
-            conversation = json.loads(conversation)
-        except json.JSONDecodeError:
-            raise HTTPException(status_code=400, detail="Invalid conversation format")
+        conversation = json.loads(conversation)
         # Get the response from the chatbot
-        response, conversation = openai.get_yt_search(query, conversation)
+        response, conversation = openAI.get_yt_search(query, conversation)
 
         # Check for yt query in [] brackets
         regex = r"\[(.*?)\]"
         matches = re.findall(regex, response)
         if len(matches) > 0:
-            continue_chat = False
             yt_query = matches[0]
 
         # Check for tone behavior in ** brackets
@@ -90,13 +93,13 @@ def app():
         playlistID = None  # Assign a default value to playlistID
 
         # search yt
-        # yt_search = openai.get_yt_search(user_query, conversation)  # text search string
+        # yt_search = openAI.get_yt_search(user_query, conversation)  # text search string
         playlist_list = yt.search_playlists(
             yt_query
         )  # format: list of dicts with keys: id, title, description, thumbnail
         return {
             "playlists": playlist_list,
-        }  # js side should display playlists  and pass the playlist that is clicked to the search function if id is empty, else dont display the playlist just store the id and call the chat funciton wiht the id
+        }  # js side should display playlists and pass the playlist that is clicked to the search function if id is empty, else dont display the playlist just store the id and call the chat funciton wiht the id
 
     @web_app.get("/scrape/{playlist_ID_input}/{playlist_list}")
     async def scrape(playlist_ID_input: str, playlist_list: str):
@@ -117,7 +120,7 @@ def app():
             raise HTTPException(status_code=404, detail="Playlist not found")
 
         # Get playlist description and add to database
-        # description = openai.get_playlist_search(
+        # description = openAI.get_playlist_search(
         #     playlist["title"], playlist["description"]
         # )
         # db.add_playlist(playlist_ID_input, playlist["title"], description)
@@ -132,7 +135,7 @@ def app():
             transcript = yt.get_transcript(
                 video["id"]
             )  # transcript has keys: text, start, duration
-            topics, video["description"] = openai.get_video_topics(transcript)
+            topics, video["description"] = openAI.get_video_topics(transcript)
             print(f"Video Topics: {topics}")
             # Add topics to DB
             db.add_topics(topics, video["id"])
@@ -162,7 +165,7 @@ def app():
             
             Remember to use your classic, colloquial teaching style in answering.
             """
-        response, conversation = openai.chat(
+        response, conversation = openAI.chat(
             prompt, [{"role": "system", "content": systemPrompt}]
         )  # todo should we pass converstaion in?
 

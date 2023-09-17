@@ -51,19 +51,6 @@ class VectorDB:
                 )  # print first 100 characters of the JSON for debugging
             self.db.schema.create_class(topic)
 
-    def print_existing_classes(self):
-        try:
-            classes = self.db.schema.get()
-            print("Classes: ", classes)
-            print("Existing classes in the Weaviate schema:")
-            for cls in classes:
-                if isinstance(cls, str):
-                    print(f"cls is a string: {cls}")
-                else:
-                    print("cls is not a dict")
-        except Exception as e:
-            print("Failed to fetch existing classes. Error: ", e)
-
     def check_playlist(self, query, certainty):
         # self.print_existing_classes()
 
